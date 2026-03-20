@@ -92,17 +92,32 @@ def get_activities():
 @app.post("/activities/{activity_name}/signup")
 def signup_for_activity(activity_name: str, email: str):
     """Sign up a student for an activity"""
-    # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
 
-    # Get the specific activity
     activity = activities[activity_name]
+    normalized_email = email.strip().lower()
 
-# Validate student is not already signed up
-    if email in activity["participants"]:
-        raise HTTPException(status_code=400, detail="Student already signed up")            
+    # Prevent duplicate signups
+    if any(p.strip().lower() == normalized_email for p in activity["participants"]):
+        raise HTTPException(status_code=400, detail="Student already signed up")
 
-    # Add student
-    activity["participants"].append(email)
-    return {"message": f"Signed up {email} for {activity_name}"}
+    activity["participants"].append(normalized_email)
+    return {"message": f"Signed up {normalized_email} for {activity_name}"}
+
+
+@app.delete("/activities/{activity_name}/participants")
+def remove_participant(activity_name: str, email: str):
+    """Unregister a student from an activity"""
+    if activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    activity = activities[activity_name]
+    normalized_email = email.strip().lower()
+
+    existing = next((p for p in activity["participants"] if p.strip().lower() == normalized_email), None)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    activity["participants"].remove(existing)
+    return {"message": f"Unregistered {existing} from {activity_name}"}
